@@ -1706,6 +1706,71 @@
          "target" : "JSON",
          "version" : "2.53"
       },
+      "JSON::Tiny" : {
+         "dist" : "JSON-Tiny-0.25",
+         "mymeta" : {
+            "abstract" : "Minimalistic JSON. No dependencies.",
+            "author" : [
+               "David Oswald <davido [@at] cpan [d.o.t] org>"
+            ],
+            "dynamic_config" : 0,
+            "generated_by" : "ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120921",
+            "license" : [
+               "artistic_2"
+            ],
+            "meta-spec" : {
+               "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+               "version" : "2"
+            },
+            "name" : "JSON-Tiny",
+            "no_index" : {
+               "directory" : [
+                  "t",
+                  "inc"
+               ]
+            },
+            "prereqs" : {
+               "build" : {
+                  "requires" : {
+                     "English" : "0",
+                     "Test::More" : "0.98"
+                  }
+               },
+               "configure" : {
+                  "requires" : {
+                     "ExtUtils::MakeMaker" : "0"
+                  }
+               },
+               "runtime" : {
+                  "requires" : {
+                     "B" : "0",
+                     "Encode" : "0",
+                     "Exporter" : "0",
+                     "Scalar::Util" : "0",
+                     "perl" : "5.010000"
+                  }
+               }
+            },
+            "provides" : {
+               "JSON::Tiny" : {
+                  "file" : "lib/JSON/Tiny.pm",
+                  "version" : "0.25"
+               }
+            },
+            "release_status" : "stable",
+            "version" : "0.25"
+         },
+         "name" : "JSON::Tiny",
+         "pathname" : "D/DA/DAVIDO/JSON-Tiny-0.25.tar.gz",
+         "provides" : {
+            "JSON::Tiny" : {
+               "file" : "JSON/Tiny.pm",
+               "version" : "0.25"
+            }
+         },
+         "target" : "JSON::Tiny",
+         "version" : "0.25"
+      },
       "LWP" : {
          "dist" : "libwww-perl-6.04",
          "mymeta" : {
