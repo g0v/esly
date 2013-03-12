@@ -125,6 +125,10 @@ sub create_index {
         },
         mappings => {
             LyGazetteIssue => {
+                _all => {
+                    enabled => 1,
+                    store => "yes"
+                },
                 _id => { "path" => "issue" },
                 properties => {
                     issue => {
