@@ -3,39 +3,42 @@ use v5.14;
 package PassionFruit;
 use File::Next;
 use File::Slurp qw(read_file);
-use Moo;
+use Encode qw(decode_utf8 encode_utf8);
+use Moose;
 use ElasticSearch;
+use Markdent;
+use Markdent::Parser;
+use Markdent::Handler::MinimalTree;
+use Markdent::Handler::CaptureEvents;
+
+use Moose::Util::TypeConstraints;
+
+subtype 'LyGazetteSourceDirectory', as 'Str', where {
+    my $src = $_;
+    -d "$src/raw" or die "$src is not a directory.\n";
+    -f "$src/raw/3867.md" or die "$src is not a directory with gazette raw data files.\n";
+};
+
+no Moose::Util::TypeConstraints;
 
 has es => (
-    is => "lazy",
-    isa => sub {
-        ref($_[0]) eq "ElasticSearch" or die "Not an ElasticSearch object.\n";
-    }
+    is => "ro",
+    lazy_build => 1,
+    isa => "ElasticSearch"
 );
 
 has gazette_source => (
     is => "ro",
     required => 1,
-    isa => sub {
-        my $src = $_[0];
-        -d "$src/raw" or die "$src is nnot a directory.\n";
-        -f "$src/raw/3867.md" or die "$src is not a directory with gazette raw data files.\n";
-    }
+    isa => 'LyGazetteSourceDirectory'
 );
 
 has index_name => (
-    is => "lazy",
-    isa => sub {
-        $_[0] =~ /\A g0vtw _ [0-9]{8} _ [0-9]{6} \z/x
-    }
+    is => "ro",
+    default => sub { "g0vtw" }
 );
 
 sub _build_es { return ElasticSearch->new }
-
-sub _build_index_name {
-    my ($sec,$min,$hour,$mday, $mon, $year) = localtime(time);
-    return sprintf "g0vtw_%04d%02d%02d_%02d%02d%02d", 1900+$year, $mon, $mday, $hour, $min, $sec;
-}
 
 sub walk_gazettes {
     my $self = shift;
@@ -44,12 +47,47 @@ sub walk_gazettes {
 
     my $it = File::Next::files($self->gazette_source);
     while(defined( my $file = $it->() )) {
-        next unless $file =~ m!/raw/(?<number>\d+)\.md$!a;
-        my $gazette_content = $self->read_gazette($file);
-        $self->index_gazette(
-            number  => $+{number},
-            content => $gazette_content,
-        );
+        next unless $file =~ m!/raw/(?<issue>\d+)\.md$!a;
+
+        my $content = $self->read_gazette($file);
+        my $doc = $self->parse_gazette($content);
+        $doc->{issue} = $+{issue};
+        $self->index_gazette($doc);
+    }
+}
+
+sub parse_gazette {
+    my ($self, $text) = @_;
+
+    my $h = Markdent::Handler::CaptureEvents->new;
+
+    my $parser = Markdent::Parser->new(
+        dialect => "GitHub",
+        handler => $h,
+    );
+
+    $parser->parse(markdown => encode_utf8($text));
+
+    my @paragraph_text;
+    for my $e ($h->captured_events->events) {
+        if ($e->isa("Markdent::Event::Text")) {
+            my $t = $e->text;
+            if ($t =~ m!\S!) {
+                push @paragraph_text, $t;
+            }
+        }
+    }
+
+    my @paragraphs;
+    for (@paragraph_text) {
+        push @paragraphs, {
+            type => "text",
+            content => (decode_utf8($_) =~ s!\n\z!!gr),
+        }
+    }
+
+    return {
+        paragraphs => \@paragraphs
     }
 }
 
@@ -58,16 +96,18 @@ sub read_gazette {
     my $content = read_file($file, { binmode => ":utf8" });
 
     # strip json block
-    $content =~ s!\n [ \t]*```json \n (.+) \n [ \t]*```\n!!gsx;
-
-    # strip table.
-    $content =~ s!\n \<table [^\n]+ \n !!gsmx;
+    # $content =~ s!\n [ \t]*```json \n (.+) \n [ \t]*```\n!!gsx;
 
     return $content;
 }
 
 sub create_index {
     my $self = shift;
+
+    my $result = $self->es->index_exists( index => $self->index_name );
+
+    return if ($result && $result->{ok});
+
     $self->es->create_index(
         index => $self->index_name,
         settings => {
@@ -92,7 +132,7 @@ sub create_index {
             }
         },
         mappings => {
-            LyGazetteText => {
+            LyGazetteIssue => {
                 _id => { "path" => "issue" },
                 properties => {
                     issue => {
@@ -111,22 +151,30 @@ sub create_index {
 }
 
 sub index_gazette {
-    my ($self, %args) = @_;
+    my ($self, $doc) = @_;
 
-    say "Issue $args{number} has content with " . length($args{content}) . " characters";
-
-    $self->es->index(
-        index => $self->index_name,
-        type  => "LyGazetteText",
-        data  => {
-            issue   => $args{number},
-            content => $args{content},
-        }
-    );
+    eval {
+        $self->es->update(
+            index  => $self->index_name,
+            type   => "LyGazetteIssue",
+            id     => $doc->{issue},
+            doc    => $doc,
+            upsert => $doc,
+        );
+        say "Issue $doc->{issue} indexed.";
+        1;
+    }
+    or do {
+        my $error = $@ || "UNKNOWN";
+        print STDERR "Error: " . ref($error) . "\n";
+        print STDERR $error;
+        print STDERR "issue number = $doc->{issue}\n";
+    }
 }
 
 package main;
 binmode STDOUT, ":utf8";
+binmode STDERR, ":utf8";
 
 my $p = PassionFruit->new( gazette_source => $ARGV[0] );
 
