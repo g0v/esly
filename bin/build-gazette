@@ -106,17 +106,20 @@ sub create_index {
             index => {
                 analysis => {
                     filter => {
-                        bigram_and_trigram => {
-                            type => "nGram",
-                            min_gram => 2,
-                            max_gram => 3,
+                        multigram => {
+                            type => "shingle",
+                            min_shingle_size => 2,
+                            max_shingle_size => 5,
+                            token_separator => "",
+                            output_unigrams => 0,
+                            output_unigrams_if_no_shingles => 1
                         }
                     },
                     analyzer => {
                         GazetteContentAnalyzer => {
-                            type => "chinese",
-                            tokenizer => "whitespace",
-                            filter      => ["bigram_and_trigram", "trim"],
+                            type        => "custom",
+                            tokenizer   => "standard",
+                            filter      => ["standard", "multigram", "unique"],
                             char_filter => ["html_strip"]
                         }
                     }
