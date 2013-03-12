@@ -78,16 +78,8 @@ sub parse_gazette {
         }
     }
 
-    my @paragraphs;
-    for (@paragraph_text) {
-        push @paragraphs, {
-            type => "text",
-            content => (decode_utf8($_) =~ s!\n\z!!gr),
-        }
-    }
-
     return {
-        paragraphs => \@paragraphs
+        content => [ map { decode_utf8($_) =~ s!\n\z!!gr } @paragraph_text ]
     }
 }
 
