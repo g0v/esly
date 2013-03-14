@@ -79,8 +79,9 @@ sub parse_gazette {
     }
 
     return {
-        content => [ map { decode_utf8($_) =~ s!\n\z!!gr } @paragraph_text ]
+        content => join("\n", map { decode_utf8($_) } @paragraph_text)
     }
+
 }
 
 sub read_gazette {
@@ -109,7 +110,7 @@ sub create_index {
                         multigram => {
                             type => "shingle",
                             min_shingle_size => 2,
-                            max_shingle_size => 5,
+                            max_shingle_size => 3,
                             token_separator => "",
                             output_unigrams => 0,
                             output_unigrams_if_no_shingles => 1
@@ -119,7 +120,7 @@ sub create_index {
                         GazetteContentAnalyzer => {
                             type        => "custom",
                             tokenizer   => "standard",
-                            filter      => ["standard", "multigram", "unique"],
+                            filter      => ["standard", "multigram"],
                             char_filter => ["html_strip"]
                         }
                     }
