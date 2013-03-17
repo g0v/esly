@@ -54,6 +54,11 @@ sub walk_gazettes {
         $doc->{issue} = $+{issue};
         $self->index_gazette($doc);
     }
+
+    $self->es->optimized_index(
+        index => $self->index_name,
+        max_num_segments => 1
+    );
 }
 
 sub parse_gazette {
@@ -110,18 +115,31 @@ sub create_index {
                         multigram => {
                             type => "shingle",
                             min_shingle_size => 2,
-                            max_shingle_size => 3,
+                            max_shingle_size => 2,
                             token_separator => "",
                             output_unigrams => 0,
-                            output_unigrams_if_no_shingles => 1
+                            output_unigrams_if_no_shingles => 0
+                        }
+                    },
+                    tokenizer => {
+                        zhtw => {
+                            type => "ngram",
+                            min_gram => 2,
+                            max_gram => 5,
+                        }
+                    },
+                    char_filter => {
+                        fwspace => {
+                            type => "mapping",
+                            mappings => ["\x{3000}=>\x{20}"]
                         }
                     },
                     analyzer => {
                         GazetteContentAnalyzer => {
                             type        => "custom",
-                            tokenizer   => "standard",
-                            filter      => ["standard", "multigram"],
-                            char_filter => ["html_strip"]
+                            tokenizer   => "zhtw",
+                            filter      => ["lowercase", "asciifolding", "trim"],
+                            char_filter => ["fwspace", "html_strip"]
                         }
                     }
                 },
@@ -129,19 +147,19 @@ sub create_index {
         },
         mappings => {
             LyGazetteIssue => {
-                _all => {
-                    enabled => 1,
-                    store => "yes"
-                },
                 _id => { "path" => "issue" },
+                _source => {
+                    compress => 1
+                },
                 properties => {
                     issue => {
                         type => "integer"
                     },
                     content => {
                         type => "string",
+                        store => "yes",
                         analyzer => "GazetteContentAnalyzer"
-                    },
+                    }
                 }
             }
         }
@@ -154,12 +172,11 @@ sub index_gazette {
     my ($self, $doc) = @_;
 
     eval {
-        $self->es->update(
+        $self->es->index(
             index  => $self->index_name,
             type   => "LyGazetteIssue",
             id     => $doc->{issue},
-            doc    => $doc,
-            upsert => $doc,
+            data   => $doc,
         );
         say "Issue $doc->{issue} indexed.";
         1;
