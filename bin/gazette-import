@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use v5.14;
+use v5.16;
 package PassionFruit;
 use File::Next;
 use File::Slurp qw(read_file);
@@ -149,7 +149,7 @@ sub create_index {
             LyGazetteIssue => {
                 _id => { "path" => "issue" },
                 _source => {
-                    compress => 1
+                    compress => 1,
                 },
                 properties => {
                     issue => {
@@ -157,7 +157,6 @@ sub create_index {
                     },
                     content => {
                         type => "string",
-                        store => "yes",
                         analyzer => "GazetteContentAnalyzer"
                     }
                 }
@@ -189,10 +188,85 @@ sub index_gazette {
     }
 }
 
+package Pineapple {
+    use Moose;
+    use Method::Signatures 20130222;
+    use IO::All;
+    use JSON;
+
+    has issue => (
+        is => "ro",
+        isa => "Int",
+        required => 1,
+    );
+
+    has input => (
+        is => "ro",
+        isa => "Str",
+        required => 1
+    );
+
+    has output => (
+        is => "ro",
+        isa => "HashRef",
+        lazy_build => 1
+    );
+
+    method _build_output {
+        my $json_decoder = JSON->new->utf8;
+        my $json_text = io($self->input)->slurp;
+        my $data = $json_decoder->decode( $json_text );
+
+        die "Unrecgonized structure." unless ref($data) eq "ARRAY";
+
+        my $struct = { sections => [] };
+
+        for (@$data) {
+            my ($header, $body) = @$_;
+            next unless (ref($header) eq "HASH" && ref($body) eq "ARRAY");
+
+            push @{$struct->{sections}}, {
+                header => $header,
+                body   => $body
+            };
+        }
+
+        return $struct;
+    }
+}
+
 package main;
+use Try::Tiny;
+use JSON;
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-my $p = PassionFruit->new( gazette_source => $ARGV[0] );
+my $es = ElasticSearch->new;
 
-$p->walk_gazettes;
+for my $input (@ARGV) {
+    my ($issue) = $input =~ m!([0-9]+)!g;
+
+    if ($issue) {
+        my $p = Pineapple->new(
+            input => $input,
+            issue => $issue,
+        );
+
+        try {
+            my $res = $es->index(
+                index => "g0vtw",
+                type  => "lyintrep",
+                id    => $issue,
+                data  => $p->output
+            );
+            say JSON::to_json($res);
+        } catch {
+            say "Failde to handle $input\n";
+        };
+    }
+    else {
+        print "Cannot figure out the issue number by filename: $input\n";
+    }
+}
+
+
