@@ -4,7 +4,7 @@ use v5.16;
 use utf8;
 use Term::ANSIColor;
 
-use ElasticSearch;
+use Esly;
 
 binmode STDIN, ":utf8";
 binmode STDOUT, ":utf8";
@@ -13,20 +13,9 @@ my $q = shift(@ARGV) || "q = ?";
 
 utf8::decode($q);
 
-my $es = ElasticSearch->new;
+my $app = Esly->new;
 
-my $res = $es->search(
-    index => "lyg0v",
-    type  => "interp_body",
-    query => {
-        text => {
-            content => $q
-        }
-    },
-    highlight => {
-        fields => { content => {} },
-    }
-);
+my $res = $app->search( $q );
 
 if ($res->{hits}{total}) {
     for my $hit (@{ $res->{hits}{hits} }) {

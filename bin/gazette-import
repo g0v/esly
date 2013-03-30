@@ -236,12 +236,14 @@ package Pineapple {
 }
 
 package main;
+use Esly;
 use Try::Tiny;
 use JSON;
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-my $es = ElasticSearch->new;
+my $app = Esly->new;
+my $es = $app->es;
 
 for my $input (@ARGV) {
     my ($issue) = $input =~ m!([0-9]+)!g;
