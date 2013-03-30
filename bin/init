@@ -38,7 +38,8 @@ $es->create_index(
                     index => "not_analyzed"
                 },
                 content => {
-                    type => "string"
+                    type => "string",
+                    analyzer => "cjk"
                 }
             }
         }
