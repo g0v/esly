@@ -25,6 +25,7 @@ package Esly {
                     content => $ss
                 }
             },
+            size => 50,
             highlight => {
                 fields => { content => {} },
             }

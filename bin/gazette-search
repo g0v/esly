@@ -19,11 +19,10 @@ my $res = $app->search( $q );
 
 if ($res->{hits}{total}) {
     for my $hit (@{ $res->{hits}{hits} }) {
-        say $hit->{_source}{speaker};
         for my $line (@{ $hit->{highlight}{content} }) {
             $line =~ s!<em>!color 'bold red'!eg;
             $line =~ s!</em>!color 'reset'!eg;
-            say "  - $line";
+            say $hit->{_source}{issue} . "/" . $hit->{_source}{speaker} . " :: $line";
         }
         say "";
     }
