@@ -1,0 +1,46 @@
+#!/usr/bin/env perl
+use v5.16;
+use ElasticSearch;
+
+my $es = ElasticSearch->new;
+
+$es->create_index(
+    index => "lyg0v",
+    mappings => {
+        intreps => {
+            properties => {
+                sections => {
+                    properties => {
+                        header => {
+                            properties => {
+                                type => {
+                                    type => "string",
+                                    index => "not_analyzed"
+                                },
+                                people => {
+                                    type  => "string",
+                                    index => "not_analyzed"
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+        },
+        interp_body => {
+            properties => {
+                issue => {
+                    type => "integer",
+                    index => "not_analyzed"
+                },
+                speaker => {
+                    type => "string",
+                    index => "not_analyzed"
+                },
+                content => {
+                    type => "string"
+                }
+            }
+        }
+    }
+);

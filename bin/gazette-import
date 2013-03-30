@@ -253,15 +253,21 @@ for my $input (@ARGV) {
         );
 
         try {
-            my $res = $es->index(
-                index => "g0vtw",
-                type  => "lyintrep",
-                id    => $issue,
-                data  => $p->output
-            );
-            say JSON::to_json($res);
+            for my $section (@{ $p->output->{sections}}) {
+                if ($section->{header}{type} eq "interp") {
+                    for my $body (@{$section->{body}}) {
+                        $body->{issue} = $issue,
+                        my $res = $es->index(
+                            index => "lyg0v",
+                            type  => "interp_body",
+                            data  => $body
+                        );
+                    }
+                }
+            }
         } catch {
-            say "Failde to handle $input\n";
+            say "Failed to handle $input";
+            say "Error: $_";
         };
     }
     else {
